@@ -25,9 +25,13 @@ Never mark `[x]` unless the acceptance gate passes.
 - [x] Create `README.md` skeleton.
 - [x] Create `STATUS.md`.
 - [!] Register/start Devpost submission now so all form fields are visible.
-- [!] Create CockroachDB Cloud account/cluster.
-- [!] Create/verify AWS account and a development IAM identity.
-- [!] Confirm selected AWS region supports chosen Bedrock model(s).
+  Hackathon registration is complete, but no user-provided evidence confirms
+  that a project draft has been created.
+- [x] Create CockroachDB Cloud account/cluster.
+- [!] Create/verify AWS account and a development IAM identity. The local
+  profile exists, but the read-only STS identity check is not authenticated.
+- [!] Confirm selected AWS region supports chosen Bedrock model(s). The
+  account-visible model check is pending AWS CLI authentication.
 
 ## Gate P0
 
@@ -39,25 +43,29 @@ Pass only if:
 - CockroachDB cluster exists
 - AWS CLI identity check works or exact blocker documented
 
-P0 status: **BLOCKED — USER ACTION REQUIRED.** The public repository and all
-local compliance checks pass. The Devpost, CockroachDB Cloud, and AWS account
-steps are documented in `STATUS.md`; P1 has not started.
+P0 status: **PASS.** Every exact Gate P0 criterion passes: the repository is
+public, the MIT license is visible, the tracked-secret scan passes, Codex read
+the required files, a CockroachDB Cloud cluster exists, and the unsuccessful
+AWS CLI identity check has an exact blocker and recovery procedure documented
+in `STATUS.md`. Incomplete Devpost/AWS/Bedrock/database-connectivity work remains
+as parallel prerequisites and does not retroactively tighten Gate P0. P1 is
+authorized but was not started during P0 closeout.
 
 ---
 
 # P1 — Local deterministic lab simulator | 7-8 Aug
 
 ## Tasks
-- [ ] Create Python project/package skeleton.
-- [ ] Define `DeviceAdapter` interface.
-- [ ] Implement `signal_source_01` simulator.
-- [ ] Implement `scope_01` simulator.
-- [ ] Implement `mux_01` simulator.
-- [ ] Implement `temperature_01` simulator.
-- [ ] Implement deterministic seeded fault injection.
-- [ ] Implement scenario A connection failure.
-- [ ] Implement scenario B temperature/noise/signal anomaly.
-- [ ] Unit-test all fault transitions.
+- [x] Create Python project/package skeleton.
+- [x] Define `DeviceAdapter` interface.
+- [x] Implement `signal_source_01` simulator.
+- [x] Implement `scope_01` simulator.
+- [x] Implement `mux_01` simulator.
+- [x] Implement `temperature_01` simulator.
+- [x] Implement deterministic seeded fault injection.
+- [x] Implement scenario A connection failure.
+- [x] Implement scenario B temperature/noise/signal anomaly.
+- [x] Unit-test all fault transitions.
 
 ## Gate P1
 
@@ -68,6 +76,11 @@ One command can run a deterministic scenario and output:
 - stable scenario ID
 
 No LLM required yet.
+
+P1 status: **PASS.** The documented CLI command emits stable scenario IDs plus
+typed observation, attempted-action, and outcome records for Scenario A and B.
+The 27 local unit tests, Ruff, mypy, deterministic repeat check, and P0
+regression verifier pass. P2 is authorized but was not started in P1.
 
 ---
 

@@ -18,8 +18,8 @@ episodic memory in one durable CockroachDB system of record. Distributed Vector
 Indexing will retrieve related prior episodes, while validity, confidence, and
 outcome metadata will determine whether a memory may influence a new action.
 The CockroachDB Cloud Managed MCP Server is planned as a meaningful structured
-memory access path for the agent. These integrations are not yet implemented in
-P0.
+memory access path for the agent. These integrations are not implemented in the
+P1 simulator.
 
 ## Hero scenarios
 
@@ -32,9 +32,28 @@ P0.
 
 ## Current status
 
-P0 establishes repository, licensing, configuration, and account readiness.
-Application code begins in P1 only after the P0 gate is satisfied. See
+P0 established repository, licensing, configuration, and account readiness.
+P1 provides the local deterministic four-device simulator and Scenario A/B
+foundations without cloud or LLM dependencies. See
 [`STATUS.md`](STATUS.md) for verified progress and blockers.
+
+## Local deterministic simulator
+
+Python 3.12 is required. From the repository root on Windows:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python -m pip install -e ".[dev]"
+.\.venv\Scripts\python -m backend.app.devices.simulator --scenario all --json
+```
+
+The final command runs both stable P1 scenarios and emits observations,
+attempted actions, outcomes, step order, seed, and stable scenario IDs as JSON.
+It has no network, database, AWS, Bedrock, MCP, frontend, or LLM dependency.
+
+Run the scenarios individually with `--scenario scenario-a` or
+`--scenario scenario-b`. Supply `--seed <integer>` to reproduce a specific
+configuration.
 
 ## P0 verification
 

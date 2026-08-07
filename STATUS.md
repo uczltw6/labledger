@@ -1,174 +1,173 @@
 # STATUS
 
-Current phase: P0 — Scope, accounts, repo, compliance
-State: BLOCKED — USER ACTION REQUIRED
+Current phase: P1 — Local deterministic lab simulator
+State: **PASS — GATE P1 SATISFIED**
 
 ## Phase goal
 
-Establish the public repository and local compliance skeleton, verify that no
-secrets are tracked, and document any account or cloud prerequisites that
-cannot be completed safely from this environment.
+Build the smallest Python 3.12 simulator/domain foundation that exposes four
+devices, behavior-changing deterministic faults, stable machine-readable
+scenario traces, and reproducible Scenario A/B CLI runs without cloud, LLM,
+database, frontend, MCP, embeddings, agent reasoning, or PyVISA dependencies.
+
+## Gate P1 result
+
+The documented command:
+
+```powershell
+.\.venv\Scripts\python -m backend.app.devices.simulator --scenario all --json
+```
+
+runs both P1 scenarios and emits canonical JSON containing:
+
+- stable scenario ID and explicit deterministic seed;
+- typed observations with device ID, observation type, payload, and order;
+- attempted actions with device ID, action type, parameters, and order;
+- outcomes with success/failure, result/error, linked action order, and order.
+
+**Gate P1 verdict: PASS.** P2 is authorized, but no P2 database schema,
+repository, migration, seed, or integration-test work was started.
 
 ## Completed
 
-- Read `AGENTS.md`, `TODO.md`, and `RUNBOOK.md` in full.
-- Confirmed that `STATUS.md` was absent and created it for P0 tracking.
-- Inspected the repository, runtimes, CLI availability, and configuration
-  presence without reading or displaying credential values.
-- Created the public repository <https://github.com/uczltw6/labledger> with
-  `main` as its default branch.
-- Added the MIT license; GitHub reports SPDX identifier `MIT`.
-- Committed and pushed `AGENTS.md`, `TODO.md`, `RUNBOOK.md`, and the local P0
-  compliance skeleton.
-- Added Python/Node/environment/AWS-SAM/test-artifact ignore rules.
-- Added `.env.example` with explicit placeholders only.
-- Added the P0 README skeleton and dependency-free repository verifier.
-- Kept P1 application/package work out of scope.
+- Added a minimal Python 3.12 package and development-tool configuration.
+- Added dependency-free simulator trace contracts using typed dataclasses.
+- Defined the complete `DeviceAdapter` interface:
+  `discover`, `connect`, `identify`, `read_settings`, `write_safe_setting`,
+  `acquire`, `self_test`, and `disconnect`.
+- Implemented four synthetic devices:
+  `signal_source_01`, `scope_01`, `mux_01`, and `temperature_01`.
+- Implemented explicit connection states: `disconnected`, `connected`, and
+  `fault`.
+- Implemented all required stable fault identifiers:
+  `CONNECTION_TIMEOUT`, `STALE_RESOURCE`, `WRONG_IDENTITY`,
+  `MUX_CHANNEL_SWAP`, `CALIBRATION_SUPERSEDED`, `TEMPERATURE_DRIFT`,
+  `NOISE_RISE`, `SIGNAL_COLLAPSE`, and `TOOL_TIMEOUT`.
+- Faults alter real simulator behavior or shared physical state; they are not
+  display-only labels.
+- Implemented Scenario A as a stale-resource connection failure followed by
+  rediscovery, reconnect, identity verification, and an observable recovery.
+- Implemented Scenario B as a deterministic high-temperature/high-noise/low-
+  quality anomaly with the truthful baseline sequence:
+  `calibration_A -> FAILED -> reduce_drive_10_percent -> SUCCESS`.
+- The successful Scenario B intervention is derived from the shared signal
+  model: noise falls and signal quality rises after drive reduction.
+- Kept scenario orchestration separate from device behavior so later phases can
+  compare action strategies without rewriting the simulator.
+- Added machine-readable JSON and concise human-readable CLI output.
+- Added unit tests for all four devices, every required fault, connection
+  transitions, safe-setting validation, Scenario A/B, measurable improvement,
+  CLI JSON, and deterministic reproduction.
+- Updated README with the Python 3.12 setup and one-command Scenario A/B run.
 
 ## Verification
 
-- `python scripts/verify_p0.py` — PASS, 7/7 checks:
-  required files, MIT text, placeholder-only `.env.example`, ignore coverage,
-  required tracked files, tracked-secret scan, and public GitHub visibility.
-- `python -m py_compile scripts/verify_p0.py` — PASS.
-- `git diff --cached --check` before the initial commit — PASS after whitespace cleanup.
-- `gh repo view --json nameWithOwner,isPrivate,defaultBranchRef` — public
-  repository confirmed; default branch `main`.
-- `gh api 'repos/{owner}/{repo}/license' --jq '.license.spdx_id'` — `MIT`.
-- Remote `main` contains `AGENTS.md`, `TODO.md`, `RUNBOOK.md`, `LICENSE`, and
-  `README.md`.
-- Environment findings: Git 2.45.1, Python 3.11.5, Node 24.15.0, npm 11.12.1,
-  GitHub CLI 2.91.0. AWS CLI, ccloud, CockroachDB CLI, Python 3.12, AWS profile,
-  and project cloud environment variables are not present.
+- `.\.venv\Scripts\python -m pytest -q` — PASS, 27 tests.
+- `.\.venv\Scripts\python -m ruff check .` — PASS.
+- `.\.venv\Scripts\python -m ruff format --check backend tests` — PASS,
+  12 files already formatted.
+- `.\.venv\Scripts\python -m mypy backend/app` — PASS, no issues in 8 source
+  files under strict mode.
+- `.\.venv\Scripts\python -m compileall -q backend tests scripts` — PASS.
+- Scenario A JSON CLI — PASS; emitted the stable
+  `scenario-a-connection-recovery-v1` trace with observations, four attempted
+  actions, and four outcomes.
+- Scenario B JSON CLI — PASS; emitted the stable
+  `scenario-b-anomaly-baseline-v1` trace with the required failed calibration,
+  successful drive reduction, and measured before/after values.
+- Documented `--scenario all --json` command — PASS; emitted both traces with
+  non-empty observations, attempted actions, and outcomes.
+- Scenario B with seed `707`, executed twice — PASS; canonical JSON outputs
+  were byte-for-byte identical.
+- `.\.venv\Scripts\python scripts\verify_p0.py` — PASS, 7/7; P1 changes did
+  not break repository/compliance checks.
+- `git diff --check` — PASS after the closeout update.
 
-## NEEDS_USER_ACTION
+## Dependencies added
 
-### 1. Start the Devpost draft
+Runtime dependencies: **none**. The simulator core uses only Python 3.12's
+standard library.
 
-1. Open the [hackathon page](https://cockroachdb-ai.devpost.com/) and sign in.
-2. Click **Join hackathon**, review/accept the official rules, then open
-   **My projects**.
-3. Start a draft named **LabLedger** so every required submission field is
-   visible; save it, but do not submit yet.
-4. Report only that the draft exists. Do not paste private account details.
+Development dependencies in `pyproject.toml`:
 
-### 2. Create and verify the CockroachDB Cloud cluster
+- `pytest>=8.3,<9` — P1 unit and CLI acceptance tests; installed version 8.4.2.
+- `ruff>=0.9,<1` — linting and formatting; installed version 0.16.2.
+- `mypy>=1.14,<2` — strict type checking for domain and simulator contracts;
+  installed version 1.20.2.
 
-1. Sign in to [CockroachDB Cloud](https://cockroachlabs.cloud/), select the
-   intended organization, and create a **Basic** cluster following the
-   [official Basic-cluster guide](https://www.cockroachlabs.com/docs/cockroachcloud/create-a-basic-cluster).
-2. Select **AWS**, use the same region selected for the application where
-   available, choose **Start for free** only after reviewing the displayed
-   limits/costs, and name it `labledger-hackathon`.
-3. Create a dedicated SQL user, store its password in a password manager, and
-   restrict network authorization to the current development IP instead of
-   leaving `0.0.0.0/0` when practical.
-4. Copy `.env.example` to the ignored `.env` file and populate only
-   `COCKROACH_DATABASE_URL` and `COCKROACHDB_CLUSTER_ID` there. Never paste or
-   commit the connection string.
-5. From the cluster's **Connect** dialog, install the CockroachDB SQL client and
-   load the ignored `.env` value into the current process without printing it,
-   then run this read-only verification locally:
+`setuptools>=75` is used only as the package build backend.
 
-   ```powershell
-   $dbLine = Get-Content -LiteralPath .env | Where-Object { $_.StartsWith('COCKROACH_DATABASE_URL=') } | Select-Object -First 1
-   if (-not $dbLine) { throw 'COCKROACH_DATABASE_URL is missing from .env' }
-   $env:COCKROACH_DATABASE_URL = $dbLine.Substring($dbLine.IndexOf('=') + 1)
-   try {
-     cockroach sql --url $env:COCKROACH_DATABASE_URL --execute "SELECT current_database(), version();"
-   } finally {
-     Remove-Item Env:COCKROACH_DATABASE_URL -ErrorAction SilentlyContinue
-   }
-   ```
+## Files changed in P1
 
-6. Report only that the query succeeded plus the non-secret cloud/region and
-   cluster name. Do not report the URL, password, or cluster UUID.
+- `pyproject.toml`
+- `README.md`
+- `backend/__init__.py`
+- `backend/app/__init__.py`
+- `backend/app/models/__init__.py`
+- `backend/app/models/trace.py`
+- `backend/app/devices/__init__.py`
+- `backend/app/devices/base.py`
+- `backend/app/devices/faults.py`
+- `backend/app/devices/simulator.py`
+- `backend/app/devices/scenarios.py`
+- `tests/unit/test_devices.py`
+- `tests/unit/test_faults.py`
+- `tests/unit/test_scenarios.py`
+- `scripts/verify_p0.py` — removed one extra blank line so repository-wide Ruff
+  import formatting passes; no P0 behavior changed.
+- `TODO.md`
+- `STATUS.md`
 
-### 3. Configure and verify the AWS development identity and Bedrock region
+The worktree also contains a pre-existing `.env.example` modification from P0;
+P1 did not change it. `.venv` and generated package metadata are ignored.
 
-1. Install AWS CLI v2, then open a new PowerShell session:
+## Commands actually run
 
-   ```powershell
-   winget install --id Amazon.AWSCLI --exact
-   aws --version
-   ```
+- Read `AGENTS.md`, `TODO.md`, `RUNBOOK.md`, and `STATUS.md` in full before
+  editing.
+- Inspected repository files, Git status, Python version, and test-tool
+  availability.
+- `python -m compileall -q backend`.
+- `python -m venv .venv`.
+- `.\.venv\Scripts\python -m pip install --upgrade pip`.
+- `.\.venv\Scripts\python -m pip install -e ".[dev]"`.
+- `.\.venv\Scripts\python -m compileall -q backend tests scripts`.
+- `.\.venv\Scripts\python -m pytest -q`.
+- `.\.venv\Scripts\python -m ruff check .`.
+- `.\.venv\Scripts\python -m ruff format backend tests`.
+- `.\.venv\Scripts\python -m ruff format --check backend tests`.
+- `.\.venv\Scripts\python -m mypy backend/app`.
+- `.\.venv\Scripts\python -m backend.app.devices.simulator --scenario scenario-a --json`.
+- `.\.venv\Scripts\python -m backend.app.devices.simulator --scenario scenario-b --json`.
+- `.\.venv\Scripts\python -m backend.app.devices.simulator --scenario all --json`.
+- Repeated Scenario B twice with seed `707` and compared canonical JSON output.
+- `.\.venv\Scripts\python scripts\verify_p0.py`.
 
-2. In the AWS account, create or select a least-privilege development identity
-   (IAM Identity Center/SSO is preferred), then configure it locally:
+## Technical debt
 
-   ```powershell
-   aws configure sso --profile labledger-dev
-   ```
-
-3. Verify the identity without copying its account number or ARN into the repo:
-
-   ```powershell
-   aws sts get-caller-identity --profile labledger-dev *> $null
-   if ($LASTEXITCODE -eq 0) { Write-Output "AWS identity verified" }
-   ```
-
-4. Choose one region (start with `eu-west-2` for London proximity if it meets
-   model needs) and list the account-visible text and embedding models:
-
-   ```powershell
-   aws bedrock list-foundation-models --profile labledger-dev --region <aws-region> --by-output-modality TEXT --query "modelSummaries[].modelId" --output table
-   aws bedrock list-foundation-models --profile labledger-dev --region <aws-region> --by-output-modality EMBEDDING --query "modelSummaries[].modelId" --output table
-   ```
-
-5. Select one reasoning model and one embedding model that both appear, then
-   set `AWS_REGION`, `BEDROCK_MODEL_ID`, `BEDROCK_EMBEDDING_MODEL_ID`, and the
-   matching `EMBEDDING_DIM` in the ignored `.env` file. Model IDs and the chosen
-   region are safe to report; do not report credentials or the AWS account ID.
-
-### 4. Install the P1 Python prerequisite
-
-Python 3.11.5 is the only current interpreter. Before P1, install and verify
-Python 3.12:
-
-```powershell
-winget install --id Python.Python.3.12 --exact
-py -3.12 --version
-```
+- `pyproject.toml` constrains direct development dependencies but no lockfile is
+  committed yet. Add the repository's final lock strategy once later phases
+  settle the runtime dependency set.
+- P1 has no coverage threshold; behavior is covered by 27 focused tests, but a
+  coverage gate may be added during product-readiness work.
+- The simulator is synchronous by design. Any future hardware adapter must keep
+  the same domain semantics while deciding separately how to handle blocking
+  I/O.
+- Memory-on/memory-off strategy selection is intentionally not implemented in
+  P1; later phases can supply different orchestrators over the existing device
+  API and trace records.
 
 ## Blockers
 
-- The CockroachDB cluster does not yet have verifiable local configuration and
-  neither `ccloud` nor the CockroachDB SQL client is installed.
-- AWS CLI and an AWS profile are absent, so `sts get-caller-identity` and
-  account-specific Bedrock model/region checks cannot run.
-- Devpost registration/draft creation requires the user's authenticated browser
-  session and acceptance of the competition rules.
-- Therefore P0's full gate is not satisfied and P1 must not start.
+None for Gate P1.
 
-## Files changed
-
-- `.env.example`
-- `.gitignore`
-- `AGENTS.md`
-- `LICENSE`
-- `README.md`
-- `RUNBOOK.md`
-- `STATUS.md`
-- `TODO.md`
-- `scripts/verify_p0.py`
-
-## Commands run
-
-- Read all required Markdown files in bounded chunks.
-- Inspected Git state, remotes, runtimes, CLI availability, configuration-file
-  presence, and environment-variable-name presence without printing values.
-- Ran `gh auth status`, created the public GitHub repository, and verified its
-  visibility/default branch/license via `gh repo view` and `gh api`.
-- Ran `python -m py_compile scripts/verify_p0.py`.
-- Ran `python scripts/verify_p0.py` before staging (expected tracking/remote
-  failures) and after staging (7/7 pass).
-- Ran `git diff --cached --check`, staged the P0 files, committed them, and
-  pushed `main` to `origin`.
+The previously documented cloud credentials, database connectivity, Bedrock
+visibility, region-alignment, and Devpost-draft items remain parallel
+prerequisites for their later phases; they were not revisited in P1.
 
 ## Next
 
-- Complete the four `NEEDS_USER_ACTION` sections above.
-- Re-run `python scripts/verify_p0.py` and the read-only cloud identity/connection
-  checks.
-- Mark the four blocked P0 tasks complete only after their evidence is verified.
-- Do not begin P1 until the P0 gate passes.
+- P2 is authorized.
+- Start P2 only in a new invocation explicitly scoped to CockroachDB structured
+  memory.
+- Do not add vector search until P3.

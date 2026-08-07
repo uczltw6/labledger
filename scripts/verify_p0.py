@@ -13,7 +13,6 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_FILES = (
@@ -171,9 +170,7 @@ def check_tracked_secrets(files: set[str], git_error: str | None) -> Check:
         return Check("tracked secret scan", False, git_error)
 
     bad_names = sorted(
-        name
-        for name in files
-        if name != ".env.example" and DISALLOWED_TRACKED_NAMES.search(name)
+        name for name in files if name != ".env.example" and DISALLOWED_TRACKED_NAMES.search(name)
     )
     bad_contents: list[str] = []
     for name in sorted(files):
