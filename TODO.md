@@ -17,17 +17,17 @@ Never mark `[x]` unless the acceptance gate passes.
 # P0 — Scope, accounts, repo, compliance | 7 Aug
 
 ## Tasks
-- [ ] Create GitHub repo `labledger` (or final chosen name).
-- [ ] Add MIT or Apache-2.0 `LICENSE`.
-- [ ] Commit `AGENTS.md`, `TODO.md`, `RUNBOOK.md`.
-- [ ] Add `.gitignore` for Python, Node, `.env`, AWS/SAM, test artifacts.
-- [ ] Create `.env.example` with placeholders only.
-- [ ] Create `README.md` skeleton.
-- [ ] Create `STATUS.md`.
-- [ ] Register/start Devpost submission now so all form fields are visible.
-- [ ] Create CockroachDB Cloud account/cluster.
-- [ ] Create/verify AWS account and a development IAM identity.
-- [ ] Confirm selected AWS region supports chosen Bedrock model(s).
+- [x] Create GitHub repo `labledger` (or final chosen name).
+- [x] Add MIT or Apache-2.0 `LICENSE`.
+- [x] Commit `AGENTS.md`, `TODO.md`, `RUNBOOK.md`.
+- [x] Add `.gitignore` for Python, Node, `.env`, AWS/SAM, test artifacts.
+- [x] Create `.env.example` with placeholders only.
+- [x] Create `README.md` skeleton.
+- [x] Create `STATUS.md`.
+- [!] Register/start Devpost submission now so all form fields are visible.
+- [!] Create CockroachDB Cloud account/cluster.
+- [!] Create/verify AWS account and a development IAM identity.
+- [!] Confirm selected AWS region supports chosen Bedrock model(s).
 
 ## Gate P0
 
@@ -38,6 +38,10 @@ Pass only if:
 - Codex can read AGENTS/TODO
 - CockroachDB cluster exists
 - AWS CLI identity check works or exact blocker documented
+
+P0 status: **BLOCKED — USER ACTION REQUIRED.** The public repository and all
+local compliance checks pass. The Devpost, CockroachDB Cloud, and AWS account
+steps are documented in `STATUS.md`; P1 has not started.
 
 ---
 
