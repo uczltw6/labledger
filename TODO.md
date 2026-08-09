@@ -28,10 +28,11 @@ Never mark `[x]` unless the acceptance gate passes.
   Hackathon registration is complete, but no user-provided evidence confirms
   that a project draft has been created.
 - [x] Create CockroachDB Cloud account/cluster.
-- [!] Create/verify AWS account and a development IAM identity. The local
-  profile exists, but the read-only STS identity check is not authenticated.
-- [!] Confirm selected AWS region supports chosen Bedrock model(s). The
-  account-visible model check is pending AWS CLI authentication.
+- [x] Create/verify AWS account and a development IAM identity. A secret-safe
+  STS check succeeded on 9 Aug 2026 without recording identity fields.
+- [x] Confirm selected AWS region supports chosen Bedrock model(s). The
+  account-visible Bedrock API listed the selected embedding model in
+  `eu-west-2`, and a real invocation returned the configured 512 dimensions.
 
 ## Gate P0
 
@@ -45,11 +46,10 @@ Pass only if:
 
 P0 status: **PASS.** Every exact Gate P0 criterion passes: the repository is
 public, the MIT license is visible, the tracked-secret scan passes, Codex read
-the required files, a CockroachDB Cloud cluster exists, and the unsuccessful
-AWS CLI identity check has an exact blocker and recovery procedure documented
-in `STATUS.md`. Incomplete Devpost/AWS/Bedrock/database-connectivity work remains
-as parallel prerequisites and does not retroactively tighten Gate P0. P1 is
-authorized but was not started during P0 closeout.
+the required files, and a CockroachDB Cloud cluster exists. At P0 closeout the
+AWS alternative was satisfied by an exact blocker; AWS CLI identity has since
+been verified successfully during P3. The unverified Devpost draft remains a
+parallel prerequisite and does not retroactively tighten Gate P0.
 
 ---
 
@@ -90,8 +90,9 @@ regression verifier pass. P2 is authorized but was not started in P1.
 - [x] Implement schema migrations. `001_init.sql` is non-destructive,
   idempotent, and verified against the live CockroachDB cluster.
 - [x] Create devices/runs/observations/actions/outcomes/calibrations/memories/checkpoints/artifacts/audit tables.
-  All 11 live definitions pass column, UUID primary-key, and named-constraint
-  introspection without P3 vector fields.
+  The P2 baseline migration's 11 definitions pass column, UUID primary-key,
+  and named-constraint introspection and intentionally contain no P3 vector
+  definition; P3 adds that through a separate migration.
 - [x] Implement repository layer with parameterized SQL. Psycopg 3 and fake
   implementations pass local and live persistence/restore checks and reject
   divergent idempotent replay.
@@ -122,23 +123,41 @@ during P2 closeout.
 # P3 — Vector memory and validity | 8-9 Aug
 
 ## Tasks
-- [ ] Choose embedding model and dimension.
-- [ ] Add embedding generation abstraction.
-- [ ] Add `VECTOR(dim)` field.
-- [ ] Create CockroachDB vector index.
-- [ ] Implement ANN retrieval.
-- [ ] Implement validity filter: active/superseded/expired/disputed.
-- [ ] Implement deterministic reranking.
-- [ ] Persist influencing memory IDs on actions.
-- [ ] Seed prior failed/successful intervention memory.
-- [ ] Seed v1/v2 calibration conflict.
-- [ ] Implement top-k retrieval evidence response.
+- [x] Choose embedding model and dimension. Live evidence uses Amazon Titan Text
+  Embeddings V2 (`amazon.titan-embed-text-v2:0`) at 512 dimensions in
+  `eu-west-2`.
+- [x] Add embedding generation abstraction with a production Bedrock provider
+  and an explicitly TEST-ONLY deterministic provider.
+- [x] Add `VECTOR(512)` field through additive migration `002_vector_memory.sql`.
+- [x] Create the live CockroachDB cosine vector index
+  `ix_memories_embedding_cosine`.
+- [x] Implement CockroachDB cosine retrieval; live similarity computation is
+  executed in SQL, not Python.
+- [x] Implement validity filter: active/superseded/expired/disputed.
+- [x] Implement deterministic reranking with explicit, tested weights.
+- [x] Preserve the existing persisted `actions.memory_ids` influence contract.
+  P3 does not fabricate that an action was influenced before P4 executes one.
+- [x] Seed prior failed/successful intervention memory from P2 source evidence.
+- [x] Seed v1/v2 calibration conflict with the P2 supersession relationship.
+- [x] Implement generated top-k retrieval evidence response.
 
 ## Gate P3
 
 Automated tests prove:
 - expected prior episode in top-3
 - superseded calibration never drives a current action
+
+P3 status: **PASS.** A real Bedrock embedding invocation returned 512
+dimensions, four production vectors were persisted in CockroachDB, the cosine
+vector index exists, and the live SQL retrieval placed the expected Scenario B
+intervention at rank 1. The superseded v1 calibration remains visible at rank 2
+for the calibration query but is excluded from eligible current-action
+evidence; active v2 is eligible. All 100 unit tests and eight live CockroachDB
+integration tests passed with zero skips. P4 is authorized but was not started
+during P3 closeout. A later repeat invocation is currently blocked because the
+AWS account's applied Titan V2 on-demand RPM/TPM quotas report zero; the exact
+recovery is documented in `STATUS.md` and does not replace the captured live
+Gate evidence.
 
 ---
 

@@ -1,7 +1,139 @@
 # STATUS
 
-Current phase: P2 — CockroachDB structured memory
-State: **PASS — GATE P2 SATISFIED**
+Current phase: P3 — CockroachDB vector memory and validity
+State: **PASS — GATE P3 SATISFIED**
+
+## NEEDS_USER_ACTION — AWS REPLAY/P4 RUNTIME BLOCKER
+
+The genuine live P3 Gate passed and generated evidence before closeout. During
+the final repeat run, Bedrock began returning only `ThrottlingException` in
+both `eu-west-2` and `eu-west-1`. Secret-safe checks confirm STS still passes
+and the model remains account-visible. The account's applied Amazon Bedrock
+quotas in `eu-west-2` currently show `0.0` for both on-demand requests per
+minute and tokens per minute for Amazon Titan Text Embeddings V2; both are
+reported as non-adjustable through the normal Service Quotas control.
+
+Exact recovery:
+
+1. Open the AWS Console in `eu-west-2`, go to **Service Quotas -> AWS services
+   -> Amazon Bedrock**, and search for `Amazon Titan Text Embeddings V2`.
+2. Confirm the applied values for **On-demand model inference requests per
+   minute** and **On-demand model inference tokens per minute**.
+3. Because the current quotas are non-adjustable in that view, open the
+   [AWS Support service-limit form](https://console.aws.amazon.com/support/home#/case/create?issueType=service-limit-increase)
+   and request non-zero baseline on-demand RPM and TPM for model
+   `amazon.titan-embed-text-v2:0` in `eu-west-2`. State that the account has
+   zero baseline quota, rather than asking for capacity above an existing
+   allocation.
+4. Alternatively, authenticate the AWS CLI to a Hackathon AWS account that has
+   non-zero actual invocation quota for this model and Region.
+5. Do not paste the Support case, account identity, quota response, credentials,
+   or ARN into chat or repository files. When enabled, reply only:
+   `Bedrock 配额已启用`.
+
+This external quota state does not falsify the already captured successful
+Bedrock invocation and live CockroachDB Gate evidence. It does block a fresh
+P3 replay and operational P4 Bedrock work until AWS restores invocation quota.
+
+## P3 live closeout — 9 Aug 2026
+
+- Confirmed clean `d237666`, synchronized `main`, and ignored/untracked `.env`,
+  then re-ran the real P2 gate before applying any P3 schema change.
+- Secret-safe STS verification succeeded after AWS CLI login. No account ID,
+  user ID, ARN, credential, or token was printed or recorded.
+- The account-visible Bedrock API confirmed the selected embedding model in
+  `eu-west-2`. A real Amazon Titan Text Embeddings V2 invocation using
+  `amazon.titan-embed-text-v2:0` returned the configured 512 dimensions.
+- Added a production Bedrock provider with dimension/finite-number validation,
+  bounded timeouts/retries, secret-safe errors, and no fake fallback. The
+  explicitly TEST-ONLY deterministic provider cannot be persisted as live
+  evidence.
+- Added four canonical Observation -> Action -> Outcome -> Lesson memories
+  grounded in P2 identifiers: stale-resource recovery, failed `calibration_A`
+  plus successful `reduce_drive_10_percent`, superseded calibration v1 gain
+  4.2, and active calibration v2 gain 3.8.
+- Applied additive `002_vector_memory.sql` twice. The live column is
+  `VECTOR(512)` and `ix_memories_embedding_cosine` is a cosine vector index.
+  The migration uses only the required session-level
+  `sql_safe_updates=false`; no cluster-wide safety setting was changed.
+- Live CockroachDB cosine retrieval placed the expected Scenario B
+  intervention at rank 1 of top-3, preserving its P2 observation/action/outcome
+  links, prior action, and successful measured outcome.
+- The calibration query returned active v2 at rank 1 and superseded v1 at rank
+  2. v1 remains visible with `eligible_for_action=false`; the eligible evidence
+  collection contains only active v2.
+- Generated `docs/evidence/p3-vector-memory.json` from the live verifier. It
+  truthfully records that the optimizer did not select the vector index for the
+  four-row synthetic dataset, while the index exists and live cosine search ran
+  inside CockroachDB.
+- P2 remained valid after the additive migration: all eight live integration
+  tests passed with zero skips and the real two-process restore passed again.
+
+## P3 verification results
+
+- `uv run --extra dev pytest tests/unit -ra` — PASS, 100 tests.
+- Live `uv run --extra dev pytest tests/integration -q -rs` — PASS, 8 tests,
+  0 skipped; the ignored URL was loaded only into the child process.
+- `uv run --extra dev python scripts/verify_p3.py` — PASS against real Bedrock
+  and CockroachDB when Gate evidence was generated; Gate A and Gate B passed.
+- Final repeat attempts — BLOCKED externally by Bedrock `ThrottlingException`;
+  applied Titan V2 on-demand RPM and TPM now both report `0.0`. Authentication
+  and account-visible model listing still pass.
+- `uv run --extra dev python scripts/verify_p2.py --live` — PASS after P3;
+  migration, schema, and fresh-process recovery passed.
+- `uv run --extra dev python scripts/verify_p0.py` — PASS, 7/7 checks.
+- P1 Scenario A/B CLI plus identical-run determinism comparison — PASS.
+- P2/P3 credential-free verifier modes — PASS and explicitly not counted as
+  live gate evidence.
+- Ruff lint/format — PASS; strict mypy — PASS over 24 source files; compileall
+  and `git diff --check` — PASS.
+
+## P3 bugs discovered and fixed
+
+- Boto3's AWS login provider required the optional CRT dependency;
+  `botocore[crt]` is now explicit and failures remain secret-safe.
+- CockroachDB reports `format_type(...)` as `vector` while storing the declared
+  dimension in `pg_attribute.atttypmod`; verification now uses both and
+  cross-checks `SHOW CREATE TABLE`.
+- The `pytest` console entry point did not reliably expose repository-root
+  imports; pytest now has an explicit project python path.
+- Final live reruns exposed SDK default-Region ambiguity and Bedrock throttling.
+  Boto sessions now receive the configured Region directly, transient retries
+  use bounded exponential backoff, redundant calls were removed, and unchanged
+  production vectors are reused only after canonical text plus provider/model/
+  dimension checks pass. Each live Gate rerun still embeds both query contexts.
+
+## P3 technical debt
+
+- The optimizer chose a non-vector plan for four rows. P9 may add a modest
+  deterministic corpus for realistic plan evidence; no plan was forced or
+  fabricated in P3.
+- `actions.memory_ids` is ready and persisted by P2, but P3 does not claim that
+  a later action has been influenced. P4 must populate it only when an actual
+  memory-informed decision executes.
+- Bedrock reasoning, MCP, UI, Lambda/API Gateway, S3, and PyVISA remain later
+  phases and were not started.
+- Current Bedrock on-demand quota must be restored before P4 can execute its
+  real model path or the P3 live verifier can be replayed from scratch.
+
+## P3 files changed
+
+- `README.md`, `RUNBOOK.md`, `STATUS.md`, `TODO.md`, `pyproject.toml`, `uv.lock`
+- `backend/app/settings.py`, `backend/app/db/migrations.py`
+- `backend/app/memory/__init__.py`, `embedding.py`, `episodes.py`, `models.py`,
+  `policy.py`, `repository.py`, `retrieval.py`, `schema.py`
+- `migrations/002_vector_memory.sql`, `scripts/verify_p3.py`
+- `docs/evidence/README.md`, `docs/evidence/p3-vector-memory.json`
+- `tests/integration/test_vector_memory.py`
+- `tests/unit/test_embedding.py`, `test_memory_episodes.py`,
+  `test_memory_policy.py`, `test_memory_retrieval.py`, `test_p3_migration.py`,
+  `test_vector_repository.py`
+
+## Next authorization
+
+P4 is protocol-authorized by the exact written Gate P3, but its live Bedrock
+work is operationally blocked by the AWS quota issue above. P4 was not started
+in this invocation.
 
 ## Closeout credential rotation — RESOLVED
 
@@ -16,7 +148,7 @@ live verifier again passed migration/schema checks plus the fresh-process
 restore boundary. `.env` remains ignored and untracked. There is no remaining
 hard P2 closeout blocker.
 
-## Phase goal
+## Historical P2 phase goal
 
 Persist P1's typed scenario traces as structured CockroachDB rows through an
 explicit psycopg 3 repository, with an equivalent local fake, atomic outcome
@@ -113,16 +245,17 @@ and the measured outcome becomes new memory. Current factual coverage is:
   locally verified.
 - Persist structured episodes/checkpoints — implemented and verified against
   the real CockroachDB cluster across two fresh operating-system processes.
-- Retrieve semantically related episodes — not implemented; P3 only.
-- Reject stale/superseded facts during action selection — seed status exists,
-  but no retrieval/action policy exists.
+- Retrieve semantically related episodes — implemented and verified with real
+  Bedrock embeddings plus a live CockroachDB cosine top-k query.
+- Reject stale/superseded facts during current-action evidence selection —
+  implemented deterministically; P4 still owns actual action execution.
 - Prove memory-on chooses differently from memory-off — not implemented.
 - Resume a running agent without duplicate execution — explicit state is now
   captured, but continuation execution is not implemented.
-- Exercise Managed MCP, AWS runtime, judge UI, public demo URL, and video — not
-  implemented in the current repository.
-- The verified P2 change set contains no P3 vector, MCP, Bedrock, frontend, API,
-  or agent-reasoning implementation.
+- Exercise AWS Bedrock embeddings — verified in P3. Managed MCP, AWS-hosted
+  runtime, judge UI, public demo URL, and video are not yet implemented.
+- The P3 change adds vector memory and Bedrock embeddings but intentionally no
+  MCP, frontend, API, or agent-reasoning implementation.
 
 ## Final closeout rerun — 9 Aug 2026
 
@@ -200,8 +333,9 @@ and the measured outcome becomes new memory. Current factual coverage is:
 - The user reported Devpost registration complete. A saved LabLedger project
   draft has not been verified from user-provided evidence; this is important
   for submission readiness but is not Gate P2.
-- Local AWS CLI identity and account-visible Bedrock text/embedding model
-  checks remain parallel prerequisites for the AWS phase, not Gate P2.
+- AWS CLI identity, account-visible embedding-model selection, and a real
+  embedding invocation are now verified. P4 must separately select and verify
+  its reasoning model before relying on it.
 - Managed MCP credentials/integration are a later phase and were not started.
 - `ccloud` remains optional.
 
@@ -272,7 +406,7 @@ and the measured outcome becomes new memory. Current factual coverage is:
   observations/actions/outcomes/audit records.
 - The final lock strategy is still pending as later runtime dependencies settle.
 
-## Gate and authorization
+## Historical P2 gate verdict
 
-**P2 PASS — exact Gate P2 criteria are satisfied. P3 is authorized but was not
-started in this invocation.**
+**P2 PASS — exact Gate P2 criteria were satisfied. P3 was authorized and has
+since passed; the current authorization is recorded at the top of this file.**

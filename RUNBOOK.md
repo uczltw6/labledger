@@ -283,6 +283,20 @@ Execute P2 only. Implement the CockroachDB structured memory schema and reposito
 Execute P3 only. Add real CockroachDB VECTOR storage/indexing, embedding abstraction, semantic retrieval, validity filtering, and deterministic reranking. Implement the superseded calibration test and top-k prior episode retrieval. Prove the expected episode is in top-3 and stale calibration cannot drive current action. Capture query/evidence needed for the demo.
 ```
 
+Verified P3 local and live entry points:
+
+```powershell
+.\.venv\Scripts\python scripts\verify_p3.py --local
+$env:AWS_REGION = "eu-west-2"
+$env:BEDROCK_EMBEDDING_MODEL_ID = "amazon.titan-embed-text-v2:0"
+$env:EMBEDDING_DIM = "512"
+.\.venv\Scripts\python scripts\verify_p3.py
+```
+
+The live command requires the ignored `COCKROACH_DATABASE_URL` and an
+authenticated AWS CLI session. It writes only non-secret evidence to
+`docs/evidence/p3-vector-memory.json`.
+
 ## P4
 
 ```text

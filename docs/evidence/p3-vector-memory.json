@@ -1,0 +1,134 @@
+{
+  "calibration_validity": {
+    "eligible_memory_ids": [
+      "b616350f-4e3b-5382-a241-e9348020c2e7"
+    ],
+    "query_text": "device_context: scope_01\ncurrent_observation: Which scope gain calibration is current? Compare historical gain 4.2 with the newer gain 3.8 while retaining superseded evidence.\nretrieval_goal: find prior observation, action, measured outcome, and lesson",
+    "top_k": [
+      {
+        "cosine_distance": 0.60685582,
+        "eligibility_reason": "active_current_evidence",
+        "eligible_for_action": true,
+        "final_score": 0.75811465,
+        "memory_id": "b616350f-4e3b-5382-a241-e9348020c2e7",
+        "prior_action": null,
+        "prior_outcome": {
+          "error_code": null,
+          "success": null,
+          "summary": null
+        },
+        "rank": 1,
+        "semantic_similarity": 0.39314418,
+        "source_observation": null,
+        "source_run": null,
+        "status": "active",
+        "title": "Scope calibration v2"
+      },
+      {
+        "cosine_distance": 0.60236248,
+        "eligibility_reason": "superseded_history_only",
+        "eligible_for_action": false,
+        "final_score": 0.65935032,
+        "memory_id": "c6c10ba9-d66b-5405-99ea-162b6bf8c615",
+        "prior_action": null,
+        "prior_outcome": {
+          "error_code": null,
+          "success": null,
+          "summary": null
+        },
+        "rank": 2,
+        "semantic_similarity": 0.39763752,
+        "source_observation": null,
+        "source_run": null,
+        "status": "superseded",
+        "title": "Scope calibration v1"
+      }
+    ]
+  },
+  "cockroachdb": {
+    "dataset_note": "small deterministic four-memory synthetic hero dataset",
+    "dimension_match_rows": 4,
+    "embedded_rows": 4,
+    "live_query_executed_in_cockroachdb": true,
+    "query_plan_selected_vector_index": false,
+    "vector_column_type": "vector(512)",
+    "vector_index": "ix_memories_embedding_cosine",
+    "vector_index_definition_present": true
+  },
+  "embedding": {
+    "account_model_visibility_verified": true,
+    "dimension": 512,
+    "model_id": "amazon.titan-embed-text-v2:0",
+    "provider": "amazon-bedrock",
+    "region": "eu-west-2"
+  },
+  "evidence_schema": "labledger-p3-vector-memory-v1",
+  "generated_from_live_verifier": true,
+  "hero_retrieval": {
+    "eligible_memory_ids": [
+      "2746b0e2-1b2c-5959-ba86-3b20f67c5bc1",
+      "9a3421f7-17d8-5dd1-9bf2-60ddc997a450",
+      "b616350f-4e3b-5382-a241-e9348020c2e7"
+    ],
+    "query_text": "device_context: temperature_01, scope_01, signal_source_01\ncurrent_observation: The enclosure is running warmer than normal, waveform noise has climbed, and the measured acquisition quality has deteriorated. Retrieve evidence about unsuccessful calibration and a safe source-level intervention.\nretrieval_goal: find prior observation, action, measured outcome, and lesson",
+    "top_k": [
+      {
+        "cosine_distance": 0.6377615,
+        "eligibility_reason": "active_current_evidence",
+        "eligible_for_action": true,
+        "final_score": 0.82461559,
+        "memory_id": "2746b0e2-1b2c-5959-ba86-3b20f67c5bc1",
+        "prior_action": "reduce_drive_10_percent",
+        "prior_outcome": {
+          "error_code": null,
+          "success": true,
+          "summary": "action succeeded"
+        },
+        "rank": 1,
+        "semantic_similarity": 0.3622385,
+        "source_observation": "1fe6ef91-73bb-5f55-9f40-cc9d3a8a748f",
+        "source_run": "010f5444-5fa8-57a1-9bf8-ade8d161bcfc",
+        "status": "active",
+        "title": "Drive reduction restored signal quality"
+      },
+      {
+        "cosine_distance": 0.84889816,
+        "eligibility_reason": "active_current_evidence",
+        "eligible_for_action": true,
+        "final_score": 0.766553,
+        "memory_id": "9a3421f7-17d8-5dd1-9bf2-60ddc997a450",
+        "prior_action": "connect",
+        "prior_outcome": {
+          "error_code": null,
+          "success": true,
+          "summary": "action succeeded"
+        },
+        "rank": 2,
+        "semantic_similarity": 0.15110184,
+        "source_observation": "b519bbd8-173b-5be1-8cb2-6e591bf49e41",
+        "source_run": "04f07afe-ecc3-55cb-b0aa-e2ff098bf1be",
+        "status": "active",
+        "title": "Rediscovery recovered a stale scope resource"
+      },
+      {
+        "cosine_distance": 0.74085758,
+        "eligibility_reason": "active_current_evidence",
+        "eligible_for_action": true,
+        "final_score": 0.72126417,
+        "memory_id": "b616350f-4e3b-5382-a241-e9348020c2e7",
+        "prior_action": null,
+        "prior_outcome": {
+          "error_code": null,
+          "success": null,
+          "summary": null
+        },
+        "rank": 3,
+        "semantic_similarity": 0.25914242,
+        "source_observation": null,
+        "source_run": null,
+        "status": "active",
+        "title": "Scope calibration v2"
+      }
+    ]
+  }
+}

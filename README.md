@@ -13,13 +13,12 @@ calibration is still valid, and where a long-running experiment stopped.
 
 ## Why CockroachDB
 
-The planned architecture keeps structured operational state and semantic
-episodic memory in one durable CockroachDB system of record. Distributed Vector
-Indexing will retrieve related prior episodes, while validity, confidence, and
-outcome metadata will determine whether a memory may influence a new action.
-The CockroachDB Cloud Managed MCP Server is planned as a meaningful structured
-memory access path for the agent. These integrations are not implemented in the
-P1 simulator.
+The architecture keeps structured operational state and semantic episodic
+memory in one durable CockroachDB system of record. Distributed Vector Indexing
+now retrieves related prior episodes, while deterministic validity, confidence,
+device-context, and outcome rules determine whether a memory is eligible to
+influence a future action. The CockroachDB Cloud Managed MCP Server remains a
+planned meaningful structured-memory access path for a later phase.
 
 ## Hero scenarios
 
@@ -36,8 +35,10 @@ P0 established repository, licensing, configuration, and account readiness.
 P1 provides the local deterministic four-device simulator and Scenario A/B
 foundations. P2 now includes the structured-memory mapping, repository,
 transaction, migration, and restart-verifier paths, and its real CockroachDB
-process-boundary gate has been verified. Rerunning the live checks still
-requires local credentials. See
+process-boundary gate has been verified. P3 adds production Bedrock embeddings,
+real CockroachDB `VECTOR(512)` storage and cosine indexing, deterministic
+reranking, and separate semantic relevance/current-truth policy. Its live Gate
+A/B evidence passes. Rerunning live checks requires local credentials. See
 [`STATUS.md`](STATUS.md) for verified progress and blockers.
 
 ## Local deterministic simulator
@@ -88,10 +89,36 @@ ignored `.env` file as `COCKROACH_DATABASE_URL`, then run:
 
 The verifier applies only idempotent schema creation and synthetic inserts,
 then proves that Process A can persist and exit and a fresh Process B can load
-the run, latest checkpoint, ordered timeline, and failed-action evidence. P3
-will add vector storage and indexing; they are intentionally absent from P2.
+the run, latest checkpoint, ordered timeline, and failed-action evidence. The
+P2 baseline migration intentionally remains free of vector definitions; P3 adds
+them through the separate additive `002_vector_memory.sql` migration.
 The verifier rejects password-only values, unresolved password placeholders,
 non-`verify-full` Cloud URLs, and a missing Windows CA with secret-safe errors.
+
+## P3 vector-memory verification
+
+The credential-free contract check uses an explicitly TEST-ONLY provider and
+cannot satisfy Gate P3:
+
+```powershell
+.\.venv\Scripts\python scripts\verify_p3.py --local
+```
+
+For the real gate, keep the complete database URL only in ignored `.env`, log
+the AWS CLI into the intended account, and set the non-secret runtime choices:
+
+```powershell
+$env:AWS_REGION = "eu-west-2"
+$env:BEDROCK_EMBEDDING_MODEL_ID = "amazon.titan-embed-text-v2:0"
+$env:EMBEDDING_DIM = "512"
+.\.venv\Scripts\python scripts\verify_p3.py
+```
+
+The live verifier checks account-visible model availability, performs a real
+Bedrock invocation, applies the repeatable vector migration, persists grounded
+episodic memories, executes cosine top-k search in CockroachDB, and enforces
+calibration validity. It generates non-secret judge evidence at
+[`docs/evidence/p3-vector-memory.json`](docs/evidence/p3-vector-memory.json).
 
 ## P0 verification
 

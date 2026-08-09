@@ -266,14 +266,9 @@ def verify_p2_schema(database_url: str) -> tuple[str, ...]:
                 errors.append(f"{table} missing columns: {', '.join(missing_columns)}")
             if id_types.get(table) != "uuid":
                 errors.append(f"{table}.id is not UUID")
-        forbidden = [
-            str(column_name)
-            for table_name, column_name, data_type in column_rows
-            if str(table_name) == "memories"
-            and (str(column_name) == "embedding" or "vector" in str(data_type).lower())
-        ]
-        if forbidden:
-            errors.append("P3 vector columns appeared in the P2 schema")
+        # P2 verifies its required baseline while allowing later additive
+        # migrations. The credential-free P2 migration test still guarantees
+        # that 001_init.sql itself contains no P3 VECTOR definition.
         constraint_rows = connection.execute(
             """
             SELECT table_name, constraint_name, constraint_type
