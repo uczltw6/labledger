@@ -87,17 +87,35 @@ regression verifier pass. P2 is authorized but was not started in P1.
 # P2 — CockroachDB structured memory | 8 Aug
 
 ## Tasks
-- [ ] Implement schema migrations.
-- [ ] Create devices/runs/observations/actions/outcomes/calibrations/memories/checkpoints/artifacts/audit tables.
-- [ ] Implement repository layer with parameterized SQL.
-- [ ] Create transactions for action + outcome + checkpoint consistency.
-- [ ] Seed hero scenarios.
-- [ ] Add integration tests against CockroachDB when credentials exist.
-- [ ] Add local mocks/fakes for credential-free tests.
+- [x] Implement schema migrations. `001_init.sql` is non-destructive,
+  idempotent, and verified against the live CockroachDB cluster.
+- [x] Create devices/runs/observations/actions/outcomes/calibrations/memories/checkpoints/artifacts/audit tables.
+  All 11 live definitions pass column, UUID primary-key, and named-constraint
+  introspection without P3 vector fields.
+- [x] Implement repository layer with parameterized SQL. Psycopg 3 and fake
+  implementations pass local and live persistence/restore checks and reject
+  divergent idempotent replay.
+- [x] Create transactions for action + outcome + checkpoint consistency. Local
+  rollback injection and live late-failure rollback both preserve atomicity;
+  compare-and-set progress and bounded `40001` retry tests pass.
+- [x] Seed hero scenarios. Live read-only checks confirm Scenario A/B evidence
+  plus superseded calibration v1 and active calibration v2.
+- [x] Add integration tests against CockroachDB when credentials exist. All
+  four tests ran against the live cluster and passed with zero skips.
+- [x] Add local mocks/fakes for credential-free tests. The copy-on-write fake
+  and explicit simulator checkpoint snapshots pass local regression tests.
 
 ## Gate P2
 
 Run a scenario, kill/restart local process, reload the run and latest checkpoint from CockroachDB.
+
+P2 status: **PASS.** A real Process A applied/verified the migration, persisted
+the deterministic trace and exited. A genuinely fresh Process B restored the
+same run, ordered timeline, failed evidence, latest checkpoint, device state,
+and completed-action evidence. Four live integration tests ran with zero skips.
+The SQL credential was rotated, the ignored local URL was replaced, and the
+full live gate passed again on 9 Aug 2026. P3 is authorized but was not started
+during P2 closeout.
 
 ---
 

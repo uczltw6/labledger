@@ -158,9 +158,21 @@ Fast path:
 1. Create a CockroachDB Cloud Basic cluster in an AWS region that is convenient for your Lambda deployment.
 2. Name it clearly, e.g. `labledger-hackathon`.
 3. Create application DB user/credentials.
-4. Copy connection string into local secret store only.
-5. Test connection.
-6. Keep the cluster isolated from any non-hackathon data.
+4. On Windows, download the cluster's public CA certificate without weakening
+   `sslmode=verify-full`:
+
+   ```powershell
+   New-Item -ItemType Directory -Force "$env:APPDATA\postgresql" | Out-Null
+   Invoke-WebRequest `
+     -Uri "https://cockroachlabs.cloud/clusters/<cluster-id>/cert" `
+     -OutFile "$env:APPDATA\postgresql\root.crt"
+   ```
+
+5. Copy the complete `postgresql://...` connection URL—not only its password—
+   into the ignored local `.env` secret store.
+6. Test the connection while keeping certificate and hostname verification
+   enabled.
+7. Keep the cluster isolated from any non-hackathon data.
 
 Optional ccloud path:
 

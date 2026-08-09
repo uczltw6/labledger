@@ -65,13 +65,14 @@ class _TraceBuilder:
         self.outcomes.append(record)
         return record
 
-    def build(self) -> ScenarioTrace:
+    def build(self, lab: SimulatorLab) -> ScenarioTrace:
         return ScenarioTrace(
             scenario_id=self.scenario_id,
             seed=self.seed,
             observations=tuple(self.observations),
             attempted_actions=tuple(self.actions),
             outcomes=tuple(self.outcomes),
+            checkpoint_state=lab.checkpoint_state(),
         )
 
 
@@ -138,7 +139,7 @@ def run_scenario_a(seed: int = DEFAULT_SCENARIO_A_SEED) -> ScenarioTrace:
             "identity_verified": identity["device_id"] == scope.device_id,
         },
     )
-    return builder.build()
+    return builder.build(lab)
 
 
 def run_scenario_b(seed: int = DEFAULT_SCENARIO_B_SEED) -> ScenarioTrace:
@@ -219,7 +220,7 @@ def run_scenario_b(seed: int = DEFAULT_SCENARIO_B_SEED) -> ScenarioTrace:
             "drive_amplitude": after["drive_amplitude"],
         },
     )
-    return builder.build()
+    return builder.build(lab)
 
 
 def run_scenario(scenario_id: str, *, seed: int | None = None) -> ScenarioTrace:

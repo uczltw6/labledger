@@ -29,6 +29,7 @@ class LabState:
     active_mux_channel: int = 1
     mux_mapping: dict[int, str] = field(default_factory=lambda: {1: "input_a", 2: "input_b"})
     active_faults: set[FaultId] = field(default_factory=set)
+    fault_refcounts: dict[FaultId, int] = field(default_factory=dict)
 
     @classmethod
     def from_seed(cls, seed: int) -> LabState:
@@ -42,6 +43,22 @@ class LabState:
     def temperature_c(self) -> float:
         drift = 15.0 if FaultId.TEMPERATURE_DRIFT in self.active_faults else 0.0
         return round(self.base_temperature_c + drift, 4)
+
+    def activate_fault(self, fault: FaultId) -> None:
+        """Track shared fault effects without losing multi-device ownership."""
+
+        self.fault_refcounts[fault] = self.fault_refcounts.get(fault, 0) + 1
+        self.active_faults.add(fault)
+
+    def deactivate_fault(self, fault: FaultId) -> None:
+        """Remove a shared effect only after its final device owner clears it."""
+
+        remaining = self.fault_refcounts.get(fault, 0) - 1
+        if remaining <= 0:
+            self.fault_refcounts.pop(fault, None)
+            self.active_faults.discard(fault)
+        else:
+            self.fault_refcounts[fault] = remaining
 
     def scope_metrics(self) -> dict[str, JSONValue]:
         temperature = self.temperature_c()
@@ -102,14 +119,18 @@ class SimulatedDevice(DeviceAdapter):
                 f"{fault.value} is not supported by {self.device_id}",
                 details={"fault_id": fault.value, "device_id": self.device_id},
             )
+        if fault in self.faults:
+            return
         self.faults.add(fault)
-        self.lab_state.active_faults.add(fault)
+        self.lab_state.activate_fault(fault)
         if fault is FaultId.STALE_RESOURCE:
             self.resource_hint = f"{self.expected_resource}::STALE"
 
     def clear_fault(self, fault: FaultId) -> None:
-        self.faults.discard(fault)
-        self.lab_state.active_faults.discard(fault)
+        if fault not in self.faults:
+            return
+        self.faults.remove(fault)
+        self.lab_state.deactivate_fault(fault)
         if fault is FaultId.STALE_RESOURCE:
             self.resource_hint = self.expected_resource
 
@@ -132,6 +153,7 @@ class SimulatedDevice(DeviceAdapter):
     def discover(self) -> list[str]:
         self._guard_tool("discover")
         self.resource_hint = self.expected_resource
+        self.clear_fault(FaultId.STALE_RESOURCE)
         if self.connection_state is ConnectionState.FAULT:
             self._connection_state = ConnectionState.DISCONNECTED
         return [self.expected_resource]
@@ -140,6 +162,7 @@ class SimulatedDevice(DeviceAdapter):
         self._guard_tool("connect")
         selected_resource = self.resource_hint if resource is None else resource
         if FaultId.CONNECTION_TIMEOUT in self.faults:
+            self.connected_resource = None
             self._connection_state = ConnectionState.FAULT
             raise DeviceOperationError(
                 FaultId.CONNECTION_TIMEOUT.value,
@@ -147,6 +170,7 @@ class SimulatedDevice(DeviceAdapter):
                 details={"device_id": self.device_id},
             )
         if selected_resource != self.expected_resource:
+            self.connected_resource = None
             self._connection_state = ConnectionState.FAULT
             code = (
                 FaultId.STALE_RESOURCE.value
@@ -418,6 +442,36 @@ class SimulatorLab:
         target_id = self._FAULT_DEVICE[fault] if device_id is None else device_id
         self.get_device(target_id).clear_fault(fault)
         return target_id
+
+    def checkpoint_state(self) -> dict[str, JSONValue]:
+        """Return explicit process-independent state instead of inferred event state."""
+
+        devices: dict[str, JSONValue] = {}
+        for device_id, device in self.devices.items():
+            active_faults: list[JSONValue] = []
+            for fault in sorted(device.faults, key=lambda item: item.value):
+                active_faults.append(fault.value)
+            devices[device_id] = {
+                "connection_state": device.connection_state.value,
+                "active_faults": active_faults,
+                "resource_hint": device.resource_hint,
+                "connected_resource": device.connected_resource,
+            }
+        mux_mapping: dict[str, JSONValue] = {
+            str(channel): target for channel, target in self.state.mux_mapping.items()
+        }
+        return {
+            "devices": devices,
+            "physical_state": {
+                "seed": self.state.seed,
+                "base_temperature_c": self.state.base_temperature_c,
+                "base_noise_rms": self.state.base_noise_rms,
+                "drive_amplitude": self.state.drive_amplitude,
+                "active_calibration": self.state.active_calibration,
+                "active_mux_channel": self.state.active_mux_channel,
+                "mux_mapping": mux_mapping,
+            },
+        }
 
 
 def _human_trace(trace: ScenarioTrace) -> str:

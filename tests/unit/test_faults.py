@@ -38,6 +38,18 @@ def test_connection_timeout_changes_connection_state_until_cleared() -> None:
     assert lab.scope.connect()["connection_state"] == ConnectionState.CONNECTED.value
 
 
+def test_failed_reconnect_clears_the_previous_connected_resource() -> None:
+    lab = SimulatorLab(seed=210)
+    lab.scope.connect()
+    lab.inject_fault(FaultId.CONNECTION_TIMEOUT)
+
+    with pytest.raises(DeviceOperationError):
+        lab.scope.connect()
+
+    assert lab.scope.connection_state is ConnectionState.FAULT
+    assert lab.scope.connected_resource is None
+
+
 def test_stale_resource_requires_rediscovery_before_connecting() -> None:
     lab = SimulatorLab(seed=22)
     lab.inject_fault(FaultId.STALE_RESOURCE)
@@ -50,7 +62,30 @@ def test_stale_resource_requires_rediscovery_before_connecting() -> None:
     assert lab.scope.connection_state is ConnectionState.FAULT
     resources = lab.scope.discover()
     assert lab.scope.connection_state is ConnectionState.DISCONNECTED
+    assert FaultId.STALE_RESOURCE not in lab.scope.faults
+    assert FaultId.STALE_RESOURCE not in lab.state.active_faults
     assert lab.scope.connect(resources[0])["connection_state"] == ConnectionState.CONNECTED.value
+
+
+def test_clearing_a_fault_on_the_wrong_device_preserves_shared_state() -> None:
+    lab = SimulatorLab(seed=220)
+    lab.inject_fault(FaultId.NOISE_RISE)
+
+    lab.clear_fault(FaultId.NOISE_RISE, device_id="signal_source_01")
+
+    assert FaultId.NOISE_RISE in lab.scope.faults
+    assert FaultId.NOISE_RISE in lab.state.active_faults
+
+
+def test_shared_fault_effect_remains_until_every_device_owner_clears_it() -> None:
+    lab = SimulatorLab(seed=221)
+    lab.inject_fault(FaultId.TOOL_TIMEOUT, device_id="scope_01")
+    lab.inject_fault(FaultId.TOOL_TIMEOUT, device_id="signal_source_01")
+
+    lab.clear_fault(FaultId.TOOL_TIMEOUT, device_id="scope_01")
+    assert FaultId.TOOL_TIMEOUT in lab.state.active_faults
+    lab.clear_fault(FaultId.TOOL_TIMEOUT, device_id="signal_source_01")
+    assert FaultId.TOOL_TIMEOUT not in lab.state.active_faults
 
 
 def test_wrong_identity_is_observable_after_connection() -> None:

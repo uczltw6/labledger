@@ -34,7 +34,10 @@ P1 simulator.
 
 P0 established repository, licensing, configuration, and account readiness.
 P1 provides the local deterministic four-device simulator and Scenario A/B
-foundations without cloud or LLM dependencies. See
+foundations. P2 now includes the structured-memory mapping, repository,
+transaction, migration, and restart-verifier paths, and its real CockroachDB
+process-boundary gate has been verified. Rerunning the live checks still
+requires local credentials. See
 [`STATUS.md`](STATUS.md) for verified progress and blockers.
 
 ## Local deterministic simulator
@@ -54,6 +57,41 @@ It has no network, database, AWS, Bedrock, MCP, frontend, or LLM dependency.
 Run the scenarios individually with `--scenario scenario-a` or
 `--scenario scenario-b`. Supply `--seed <integer>` to reproduce a specific
 configuration.
+
+## P2 structured-memory verification
+
+Run the credential-free P2 checks on Windows:
+
+```powershell
+.\.venv\Scripts\python scripts\verify_p2.py --local
+```
+
+This validates the non-destructive 11-table migration, strict trace-to-row
+mapping, explicit simulator checkpoint snapshots, conflict-safe idempotency,
+cross-record invariants, and copy-on-write fake. It does not satisfy Gate P2.
+For the real gate on Windows, first download the cluster's public CA certificate
+from the Cloud **Connect** instructions while keeping `sslmode=verify-full`:
+
+```powershell
+New-Item -ItemType Directory -Force "$env:APPDATA\postgresql" | Out-Null
+Invoke-WebRequest `
+  -Uri "https://cockroachlabs.cloud/clusters/<cluster-id>/cert" `
+  -OutFile "$env:APPDATA\postgresql\root.crt"
+```
+
+Put the complete `postgresql://...` URL—not the password by itself—only in the
+ignored `.env` file as `COCKROACH_DATABASE_URL`, then run:
+
+```powershell
+.\.venv\Scripts\python scripts\verify_p2.py
+```
+
+The verifier applies only idempotent schema creation and synthetic inserts,
+then proves that Process A can persist and exit and a fresh Process B can load
+the run, latest checkpoint, ordered timeline, and failed-action evidence. P3
+will add vector storage and indexing; they are intentionally absent from P2.
+The verifier rejects password-only values, unresolved password placeholders,
+non-`verify-full` Cloud URLs, and a missing Windows CA with secret-safe errors.
 
 ## P0 verification
 

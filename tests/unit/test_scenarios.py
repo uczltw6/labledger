@@ -30,6 +30,9 @@ def test_scenario_a_expected_connection_recovery_trace() -> None:
     assert trace.outcomes[0].error.code == "STALE_RESOURCE"
     assert trace.observations[-1].payload["connection_state"] == "connected"
     assert trace.observations[-1].payload["identity_verified"] is True
+    scope_state = trace.checkpoint_state["devices"]["scope_01"]
+    assert scope_state["connection_state"] == "connected"
+    assert scope_state["active_faults"] == []
 
 
 def test_scenario_b_expected_no_memory_baseline_trace() -> None:
@@ -43,6 +46,9 @@ def test_scenario_b_expected_no_memory_baseline_trace() -> None:
     assert [outcome.success for outcome in trace.outcomes] == [False, True]
     assert trace.outcomes[0].error is not None
     assert trace.outcomes[0].error.code == "CALIBRATION_SUPERSEDED"
+    physical_state = trace.checkpoint_state["physical_state"]
+    assert physical_state["drive_amplitude"] == 0.9
+    assert physical_state["active_calibration"] == "B"
 
 
 def test_scenario_b_success_is_backed_by_measurable_state_improvement() -> None:
@@ -95,6 +101,7 @@ def test_cli_all_json_exposes_observations_actions_outcomes_and_ids() -> None:
         assert trace["observations"]
         assert trace["attempted_actions"]
         assert trace["outcomes"]
+        assert trace["checkpoint_state"]
         assert [record["order"] for record in trace["records"]] == sorted(
             record["order"] for record in trace["records"]
         )

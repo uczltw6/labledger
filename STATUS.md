@@ -1,173 +1,278 @@
 # STATUS
 
-Current phase: P1 — Local deterministic lab simulator
-State: **PASS — GATE P1 SATISFIED**
+Current phase: P2 — CockroachDB structured memory
+State: **PASS — GATE P2 SATISFIED**
+
+## Closeout credential rotation — RESOLVED
+
+On 9 Aug 2026 the user rotated the dedicated LabLedger SQL user's password,
+saved the replacement password outside the repository, and replaced the
+ignored local `.env` assignment with a complete connection URL. A secret-safe
+shape check confirmed exactly one complete URL candidate without displaying
+its value. The old credential is no longer used by the project.
+
+The four live integration tests then passed with zero skips, and the standard
+live verifier again passed migration/schema checks plus the fresh-process
+restore boundary. `.env` remains ignored and untracked. There is no remaining
+hard P2 closeout blocker.
 
 ## Phase goal
 
-Build the smallest Python 3.12 simulator/domain foundation that exposes four
-devices, behavior-changing deterministic faults, stable machine-readable
-scenario traces, and reproducible Scenario A/B CLI runs without cloud, LLM,
-database, frontend, MCP, embeddings, agent reasoning, or PyVISA dependencies.
+Persist P1's typed scenario traces as structured CockroachDB rows through an
+explicit psycopg 3 repository, with an equivalent local fake, atomic outcome
+and checkpoint transactions, bounded CockroachDB serialization retries, seeded
+hero evidence, and a real two-process restart verification path. P2 does not
+add vector columns/indexes, MCP, Bedrock, frontend, API, or agent reasoning.
 
-## Gate P1 result
+## P1 checkpoint protected
 
-The documented command:
+- Inspected Git status, unstaged/staged diffs, ignore rules, and credential-like
+  patterns before changing P2 code.
+- Confirmed `.env` and `.venv` are ignored and untracked.
+- Re-ran all P1 tests, lint, formatting, strict mypy, compile, deterministic CLI,
+  P0 verifier, and clean-diff checks.
+- Fixed one Ruff formatting failure in `scripts/verify_p0.py` and one trailing
+  blank-line failure in `pyproject.toml`, then re-ran the gates.
+- Created logical P1 checkpoint commit `000df3b` and pushed it to
+  `origin/main`. Local and remote `main` matched before P2 work began.
 
-```powershell
-.\.venv\Scripts\python -m backend.app.devices.simulator --scenario all --json
-```
+## P2 implementation and live closeout
 
-runs both P1 scenarios and emits canonical JSON containing:
+- Added `psycopg[binary]>=3.2,<4` as the only runtime database dependency; no
+  SQLAlchemy or second persistence system was introduced.
+- Added `migrations/001_init.sql` with exactly 11 P2 tables, UUID primary keys,
+  JSONB state, TIMESTAMPTZ evidence, explicit constraints/indexes, and no
+  vector column/index or destructive statements.
+- Added `trace_order` and application audit `sequence_no` so observation,
+  action, and outcome evidence can be reconstructed without timestamp guesses.
+- Added strict P1 trace validation before any SQL: positive/contiguous/global
+  order, known device IDs, exactly one linked outcome per action, matching
+  action/outcome device, and success/error consistency.
+- Added deterministic logical-device and record UUID mapping. Repeated action
+  types remain distinct, failed outcomes are preserved, and Scenario B keeps
+  the signal-source action linked to the correct device.
+- Added defensive JSON copies so a frozen P1 record's mutable dictionaries
+  cannot mutate fake or mapped persistence after insertion.
+- Added checkpoint state sufficient for a fresh process to restore scenario,
+  seed, current/next step, explicit device connections/resources, active
+  faults, drive amplitude, calibration, MUX state, completed action IDs, last
+  action, and pending action. The mapper no longer infers connection state from
+  unrelated observations or outcomes.
+- Added an explicit repository protocol, psycopg 3 implementation with
+  parameterized SQL, and copy-on-write fake.
+- Implemented the critical transaction boundary: action terminal update,
+  outcome insert, compare-and-set run progress/context, checkpoint insert, and
+  audit insert. External device work is outside the retry boundary.
+- Added bounded whole-transaction retry for SQLSTATE `40001` only. UUIDs,
+  timestamps, and command records are allocated before retry.
+- Added persistence fingerprints and conflict-on-divergence semantics. An exact
+  replay is idempotent; reusing a run ID with different evidence is rejected.
+- Added shared repository validation for run/action/outcome/checkpoint/audit
+  identity, pending/completed action state, terminal outcome consistency, and
+  calibration ownership.
+- Strengthened live schema verification from table-name presence to required
+  columns, UUID primary keys, and critical named constraints.
+- Fixed simulator state invariants: failed reconnects clear stale connected
+  resources, rediscovery resolves stale-resource faults, wrong-device clears
+  cannot erase shared effects, and multi-device fault ownership is refcounted.
+- Added structured hero seed evidence for connection failure/recovery,
+  temperature/noise anomaly, failed Calibration A, successful drive reduction,
+  calibration v1 gain 4.2 as superseded, and calibration v2 gain 3.8 as active.
+- Added `scripts/verify_p2.py`: local mode validates schema/mapping/fake; live
+  mode applies the migration twice, introspects the real schema, runs Process A
+  to persist and exit, then runs a fresh Process B to restore and validate.
+- Added four live CockroachDB tests. All four ran against the real cluster and
+  passed; no integration test was skipped in the final gate.
+- Live execution exposed two Windows configuration failures before the gate:
+  a password-only `.env` value and a missing Cloud CA certificate. Added a
+  secret-safe URL/TLS preflight with six regression tests and documented the
+  official `root.crt` setup while retaining `sslmode=verify-full`.
 
-- stable scenario ID and explicit deterministic seed;
-- typed observations with device ID, observation type, payload, and order;
-- attempted actions with device ID, action type, parameters, and order;
-- outcomes with success/failure, result/error, linked action order, and order.
+## Failure-led improvements
 
-**Gate P1 verdict: PASS.** P2 is authorized, but no P2 database schema,
-repository, migration, seed, or integration-test work was started.
+Three read-only review agents independently audited P1 failure paths, P2 schema,
+and P2 transactions. Their findings became tests or explicit debt:
 
-## Completed
+- Scenario A's two `connect` attempts cannot collide by action type.
+- Failed connection/calibration outcomes cannot be filtered out.
+- Cross-table trace order cannot depend on equal transaction timestamps.
+- Fake reads/writes cannot share mutable JSON aliases.
+- Duplicate order, orphan outcome, missing outcome, unknown device, and
+  success-with-error traces fail before persistence.
+- Four injected transaction failures — after action, outcome, run, and
+  checkpoint writes — all leave the fake at its pre-transaction state.
+- Retry tests prove first-retry success, exact maximum attempts, immediate
+  propagation of non-`40001`, and stable business identity across attempts.
 
-- Added a minimal Python 3.12 package and development-tool configuration.
-- Added dependency-free simulator trace contracts using typed dataclasses.
-- Defined the complete `DeviceAdapter` interface:
-  `discover`, `connect`, `identify`, `read_settings`, `write_safe_setting`,
-  `acquire`, `self_test`, and `disconnect`.
-- Implemented four synthetic devices:
-  `signal_source_01`, `scope_01`, `mux_01`, and `temperature_01`.
-- Implemented explicit connection states: `disconnected`, `connected`, and
-  `fault`.
-- Implemented all required stable fault identifiers:
-  `CONNECTION_TIMEOUT`, `STALE_RESOURCE`, `WRONG_IDENTITY`,
-  `MUX_CHANNEL_SWAP`, `CALIBRATION_SUPERSEDED`, `TEMPERATURE_DRIFT`,
-  `NOISE_RISE`, `SIGNAL_COLLAPSE`, and `TOOL_TIMEOUT`.
-- Faults alter real simulator behavior or shared physical state; they are not
-  display-only labels.
-- Implemented Scenario A as a stale-resource connection failure followed by
-  rediscovery, reconnect, identity verification, and an observable recovery.
-- Implemented Scenario B as a deterministic high-temperature/high-noise/low-
-  quality anomaly with the truthful baseline sequence:
-  `calibration_A -> FAILED -> reduce_drive_10_percent -> SUCCESS`.
-- The successful Scenario B intervention is derived from the shared signal
-  model: noise falls and signal quality rises after drive reduction.
-- Kept scenario orchestration separate from device behavior so later phases can
-  compare action strategies without rewriting the simulator.
-- Added machine-readable JSON and concise human-readable CLI output.
-- Added unit tests for all four devices, every required fault, connection
-  transitions, safe-setting validation, Scenario A/B, measurable improvement,
-  CLI JSON, and deterministic reproduction.
-- Updated README with the Python 3.12 setup and one-command Scenario A/B run.
+## First-principles verdict
 
-## Verification
+LabLedger succeeds only when durable prior evidence changes a later safe action
+and the measured outcome becomes new memory. Current factual coverage is:
 
-- `.\.venv\Scripts\python -m pytest -q` — PASS, 27 tests.
+- Observe realistic synthetic faults and measured outcomes — implemented and
+  locally verified.
+- Persist structured episodes/checkpoints — implemented and verified against
+  the real CockroachDB cluster across two fresh operating-system processes.
+- Retrieve semantically related episodes — not implemented; P3 only.
+- Reject stale/superseded facts during action selection — seed status exists,
+  but no retrieval/action policy exists.
+- Prove memory-on chooses differently from memory-off — not implemented.
+- Resume a running agent without duplicate execution — explicit state is now
+  captured, but continuation execution is not implemented.
+- Exercise Managed MCP, AWS runtime, judge UI, public demo URL, and video — not
+  implemented in the current repository.
+- The verified P2 change set contains no P3 vector, MCP, Bedrock, frontend, API,
+  or agent-reasoning implementation.
+
+## Final closeout rerun — 9 Aug 2026
+
+- Pre-commit candidate scan passed with zero high-confidence secret matches;
+  `.env` is ignored and untracked.
+- Final local rerun passed: 69 unit tests, Ruff lint, Ruff format check, strict
+  mypy over 15 source files, compileall, P0 regression verification, P2 local
+  verification, Scenario A/B CLI checks, deterministic Scenario B repeat, and
+  `git diff --check`.
+- An initial integration invocation correctly skipped because pytest does not
+  automatically import `.env`; this invocation was not counted as Gate
+  evidence. The URL was then loaded into that child process only, without
+  printing it, and all four live tests passed with zero skips.
+- Hardened integration-test collection to call the same secret-safe URL/TLS
+  preflight before psycopg. A captured regression check proves invalid
+  configuration now fails without echoing its value; all 69 unit tests and
+  static checks still pass afterward.
+- `scripts/verify_p2.py` passed live migration/schema verification and the
+  Process A write/exit -> fresh Process B restore boundary after credential
+  rotation.
+- The final candidate scan covered 38 tracked/untracked non-ignored files with
+  zero high-confidence secret findings; `.env` is ignored and untracked.
+
+## Verification results
+
+- `.\.venv\Scripts\python -m pytest tests/unit -ra` — PASS, 69 tests.
+- `.\.venv\Scripts\python -m pytest tests/integration -m integration -ra` —
+  PASS, 4 live tests, 0 skipped.
 - `.\.venv\Scripts\python -m ruff check .` — PASS.
-- `.\.venv\Scripts\python -m ruff format --check backend tests` — PASS,
-  12 files already formatted.
-- `.\.venv\Scripts\python -m mypy backend/app` — PASS, no issues in 8 source
-  files under strict mode.
-- `.\.venv\Scripts\python -m compileall -q backend tests scripts` — PASS.
-- Scenario A JSON CLI — PASS; emitted the stable
-  `scenario-a-connection-recovery-v1` trace with observations, four attempted
-  actions, and four outcomes.
-- Scenario B JSON CLI — PASS; emitted the stable
-  `scenario-b-anomaly-baseline-v1` trace with the required failed calibration,
-  successful drive reduction, and measured before/after values.
-- Documented `--scenario all --json` command — PASS; emitted both traces with
-  non-empty observations, attempted actions, and outcomes.
-- Scenario B with seed `707`, executed twice — PASS; canonical JSON outputs
-  were byte-for-byte identical.
-- `.\.venv\Scripts\python scripts\verify_p0.py` — PASS, 7/7; P1 changes did
-  not break repository/compliance checks.
-- `git diff --check` — PASS after the closeout update.
+- `.\.venv\Scripts\python -m ruff format --check backend tests scripts` —
+  PASS after formatting the new files.
+- `.\.venv\Scripts\python -m mypy backend/app` — PASS, strict mode, 15
+  source files.
+- `.\.venv\Scripts\python scripts\verify_p2.py --local` — PASS; explicitly
+  reports that fake evidence cannot satisfy Gate P2.
+- `.\.venv\Scripts\python scripts\verify_p2.py` — PASS against the live
+  cluster: migration/schema verification plus Process A/Process B restore.
+- Live read-only hero-evidence query — PASS: Scenario A ordered failure and
+  recovery; Scenario B anomaly, failed calibration, successful drive reduction,
+  and measured improvement; calibration v1/v2 values, validity, supersession,
+  confidence, provenance, and device ownership.
 
-## Dependencies added
+## Live Gate P2 evidence
 
-Runtime dependencies: **none**. The simulator core uses only Python 3.12's
-standard library.
+- Process A connected to the real cluster, applied `001_init.sql` twice,
+  introspected all 11 tables/columns/UUID primary keys/named constraints,
+  persisted the deterministic scenario, structured actions/outcomes/audit and
+  latest checkpoint, then exited.
+- Process B was a genuinely fresh Python process. It independently reconnected
+  and restored the run, stable scenario state, seed, contiguous ordered
+  timeline, failed evidence, run progress, explicit device/physical state,
+  latest checkpoint, completed-action IDs, last action, and no pending action.
+- Restored action/outcome counts matched Process A, so the read/restart path did
+  not create a duplicate completed action.
+- The live rollback integration test forced a late uniqueness failure and
+  proved action, outcome, run progress, and checkpoint changes all rolled back.
+- The bounded SQLSTATE `40001` behavior remains covered by complete-operation
+  retry tests with stable preallocated UUID/time identity. A naturally occurring
+  serialization conflict was not required or fabricated.
 
-Development dependencies in `pyproject.toml`:
+### Live compatibility fix
 
-- `pytest>=8.3,<9` — P1 unit and CLI acceptance tests; installed version 8.4.2.
-- `ruff>=0.9,<1` — linting and formatting; installed version 0.16.2.
-- `mypy>=1.14,<2` — strict type checking for domain and simulator contracts;
-  installed version 1.20.2.
+- Created a dedicated application SQL user and restricted the Cloud IP Allowlist
+  to the current development IP.
+- Downloaded the cluster's public CA to the standard Windows PostgreSQL path,
+  verified that it is a PEM certificate with no private key, and retained full
+  certificate/hostname verification.
+- Added preflight failures for incomplete/password-only URLs, unresolved
+  password placeholders, non-`verify-full` URLs, and a missing Windows CA.
+- No database URL, username/password, cluster UUID, IP, account identity, token,
+  or key was printed or committed.
 
-`setuptools>=75` is used only as the package build backend.
+## PARALLEL PREREQUISITES
 
-## Files changed in P1
+- The user reported Devpost registration complete. A saved LabLedger project
+  draft has not been verified from user-provided evidence; this is important
+  for submission readiness but is not Gate P2.
+- Local AWS CLI identity and account-visible Bedrock text/embedding model
+  checks remain parallel prerequisites for the AWS phase, not Gate P2.
+- Managed MCP credentials/integration are a later phase and were not started.
+- `ccloud` remains optional.
 
-- `pyproject.toml`
+## Files changed in P2
+
 - `README.md`
-- `backend/__init__.py`
-- `backend/app/__init__.py`
-- `backend/app/models/__init__.py`
-- `backend/app/models/trace.py`
-- `backend/app/devices/__init__.py`
-- `backend/app/devices/base.py`
-- `backend/app/devices/faults.py`
-- `backend/app/devices/simulator.py`
+- `RUNBOOK.md`
+- `STATUS.md`
+- `TODO.md`
+- `pyproject.toml`
+- `backend/app/db/__init__.py`
+- `backend/app/db/fake.py`
+- `backend/app/db/mapping.py`
+- `backend/app/db/migrations.py`
+- `backend/app/db/psycopg_repository.py`
+- `backend/app/db/repository.py`
+- `backend/app/db/types.py`
 - `backend/app/devices/scenarios.py`
-- `tests/unit/test_devices.py`
+- `backend/app/devices/simulator.py`
+- `backend/app/models/trace.py`
+- `migrations/001_init.sql`
+- `scripts/verify_p2.py`
+- `tests/unit/test_db_mapping.py`
+- `tests/unit/test_fake_repository.py`
+- `tests/unit/test_migration.py`
+- `tests/unit/test_repository_sql.py`
+- `tests/unit/test_transaction_retry.py`
+- `tests/unit/test_verify_p2.py`
 - `tests/unit/test_faults.py`
 - `tests/unit/test_scenarios.py`
-- `scripts/verify_p0.py` — removed one extra blank line so repository-wide Ruff
-  import formatting passes; no P0 behavior changed.
-- `TODO.md`
-- `STATUS.md`
+- `tests/integration/test_cockroach_repository.py`
 
-The worktree also contains a pre-existing `.env.example` modification from P0;
-P1 did not change it. `.venv` and generated package metadata are ignored.
+## Commands actually run in this invocation
 
-## Commands actually run
-
-- Read `AGENTS.md`, `TODO.md`, `RUNBOOK.md`, and `STATUS.md` in full before
-  editing.
-- Inspected repository files, Git status, Python version, and test-tool
-  availability.
-- `python -m compileall -q backend`.
-- `python -m venv .venv`.
-- `.\.venv\Scripts\python -m pip install --upgrade pip`.
-- `.\.venv\Scripts\python -m pip install -e ".[dev]"`.
-- `.\.venv\Scripts\python -m compileall -q backend tests scripts`.
-- `.\.venv\Scripts\python -m pytest -q`.
-- `.\.venv\Scripts\python -m ruff check .`.
-- `.\.venv\Scripts\python -m ruff format backend tests`.
-- `.\.venv\Scripts\python -m ruff format --check backend tests`.
-- `.\.venv\Scripts\python -m mypy backend/app`.
-- `.\.venv\Scripts\python -m backend.app.devices.simulator --scenario scenario-a --json`.
-- `.\.venv\Scripts\python -m backend.app.devices.simulator --scenario scenario-b --json`.
-- `.\.venv\Scripts\python -m backend.app.devices.simulator --scenario all --json`.
-- Repeated Scenario B twice with seed `707` and compared canonical JSON output.
-- `.\.venv\Scripts\python scripts\verify_p0.py`.
+- Read the attached P2 request and `AGENTS.md`, `TODO.md`, `RUNBOOK.md`, and
+  `STATUS.md` in full before editing.
+- Inspected Git status/diffs/staged files, ignore rules, remote, configuration
+  presence, and credential-pattern filenames/content without displaying secret
+  values.
+- Re-ran P1 pytest, Ruff lint/format, strict mypy, compileall, P0 verification,
+  Scenario A/B CLI, deterministic seed comparison, and `git diff --check`.
+- Staged the P1 files, ran staged diff/forbidden-name checks, committed P1, and
+  pushed `main`.
+- Installed the updated editable package with `psycopg 3` and development tools.
+- Ran Ruff formatting/lint repeatedly while closing reported failures.
+- Ran strict mypy and fixed every reported mapper type error.
+- Ran all 69 unit tests after adding the live-configuration regressions.
+- Ran all four live CockroachDB integration tests with zero skips.
+- Ran the live P2 verifier: Process A persisted and exited; a fresh Process B
+  independently restored the run and checkpoint.
+- Ran secret-safe read-only SQL checks for Scenario A, Scenario B, and
+  calibration v1/v2 hero evidence.
+- Re-ran Ruff lint/format, strict mypy, compileall, P0 verification, Scenario
+  A/B CLI, and `git diff --check` after the live fixes.
 
 ## Technical debt
 
-- `pyproject.toml` constrains direct development dependencies but no lockfile is
-  committed yet. Add the repository's final lock strategy once later phases
-  settle the runtime dependency set.
-- P1 has no coverage threshold; behavior is covered by 27 focused tests, but a
-  coverage gate may be added during product-readiness work.
-- The simulator is synchronous by design. Any future hardware adapter must keep
-  the same domain semantics while deciding separately how to handle blocking
-  I/O.
-- Memory-on/memory-off strategy selection is intentionally not implemented in
-  P1; later phases can supply different orchestrators over the existing device
-  API and trace records.
+- `devices.active_calibration_id` is an application-validated UUID in P2 rather
+  than a database foreign key because it creates a cyclic DDL dependency with
+  `calibrations.device_id`; adding it idempotently should be handled in a later
+  numbered migration after the live schema is verified.
+- The explicit checkpoint is now sufficient to reconstruct simulator state,
+  but no agent state machine exists yet to instantiate a new adapter and
+  continue execution without duplicating a completed action. That is a later
+  gate, not evidence already achieved by P2.
+- `device_sessions` exists in the schema but Scenario A does not yet populate
+  session-specific rows; its connection evidence currently lives in typed
+  observations/actions/outcomes/audit records.
+- The final lock strategy is still pending as later runtime dependencies settle.
 
-## Blockers
+## Gate and authorization
 
-None for Gate P1.
-
-The previously documented cloud credentials, database connectivity, Bedrock
-visibility, region-alignment, and Devpost-draft items remain parallel
-prerequisites for their later phases; they were not revisited in P1.
-
-## Next
-
-- P2 is authorized.
-- Start P2 only in a new invocation explicitly scoped to CockroachDB structured
-  memory.
-- Do not add vector search until P3.
+**P2 PASS — exact Gate P2 criteria are satisfied. P3 is authorized but was not
+started in this invocation.**

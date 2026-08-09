@@ -88,6 +88,7 @@ class ScenarioTrace:
     observations: tuple[Observation, ...]
     attempted_actions: tuple[AttemptedAction, ...]
     outcomes: tuple[Outcome, ...]
+    checkpoint_state: dict[str, JSONValue]
 
     def ordered_records(self) -> list[dict[str, JSONValue]]:
         records = [
@@ -109,6 +110,7 @@ class ScenarioTrace:
             "attempted_actions": actions,
             "outcomes": outcomes,
             "records": ordered_records,
+            "checkpoint_state": self.checkpoint_state,
         }
 
     def to_json(self) -> str:
